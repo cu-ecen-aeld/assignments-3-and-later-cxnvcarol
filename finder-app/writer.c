@@ -15,7 +15,7 @@ int main(int argc, char const *argv[])
     
     if(argc!=3){ //hint: first argument is the program name (like in shell)
         syslog(LOG_ERR,"Expected number of arguments is 3 (including program name), but it was: %d\n", argc);
-        return -1;
+        return 1;
     }
 
     const char* writefile=argv[1];
@@ -26,7 +26,7 @@ int main(int argc, char const *argv[])
 
     if (fd == -1){
         syslog(LOG_ERR,"Unexpected error opening file %s",writefile);
-        return -1;
+        return 1;
     }
 
     ssize_t nr=write (fd, writestr, strlen (writestr));
@@ -34,11 +34,11 @@ int main(int argc, char const *argv[])
 
     if (nr == -1){
         syslog(LOG_ERR,"Unexpected error writing to file");
-        return -1;
+        return 1;
     }
     if (close (fd) == -1 ){
         syslog(LOG_ERR,"Unexpected error closing file");
-        return -1;
+        return 1;
     }
     syslog(LOG_INFO,"Wrote file successfully :) \n");
 
