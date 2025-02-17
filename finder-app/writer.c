@@ -30,7 +30,7 @@ int main(int argc, char const *argv[])
     }
 
     ssize_t nr=write (fd, writestr, strlen (writestr));
-
+    write(fd, "\n", 1); //EOL seemed necessary for the finder-test :whatever:
 
     if (nr == -1){
         syslog(LOG_ERR,"Unexpected error writing to file");
