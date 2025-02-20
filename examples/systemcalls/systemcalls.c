@@ -1,4 +1,7 @@
 #include "systemcalls.h"
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/wait.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -11,12 +14,16 @@ bool do_system(const char *cmd)
 {
 
 /*
- * TODO  add your code here
+ * DONE  add your code here
  *  Call the system() function with the command set in the cmd
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
-
+    int result=system(cmd);
+    if(result==-1)
+    {
+        return false;
+    }
     return true;
 }
 
@@ -50,18 +57,48 @@ bool do_exec(int count, ...)
     command[count] = command[count];
 
 /*
- * TODO:
+ * Done.
  *   Execute a system command by calling fork, execv(),
  *   and wait instead of system (see LSP page 161).
  *   Use the command[0] as the full path to the command to execute
  *   (first argument to execv), and use the remaining arguments
- *   as second argument to the execv() command.
+ *   as second argument to the execv() command. 
+ * 
+ * /// ah fuck, this was not a good instruction:: as second argument all arguments should be used for execv
  *
 */
+    bool success=true;
+    pid_t pid= fork ();
+
+    printf("Exec called %s with %d args\n", command[0],count);
+    // for (int i = 1; command[i] != NULL; i++) {
+    //     printf("Arg[%d]: %s\n", i, command[i]);
+    // }
+
+    if(pid==0){
+        printf("child process...\n");
+        // child process
+        execv(command[0], &command[0]);
+        // if it continues it was an error, otherwise the execv process takes over.
+        perror("Error with execv");
+        exit(EXIT_FAILURE);
+    }
+    int status;
+        
+    waitpid(pid, &status, 0);
+    printf("status %d\n", status);
+
+    if (WIFEXITED(status)) {
+        int exit_code = WEXITSTATUS(status);
+        printf("Exit code: %d\n", exit_code);
+        if(exit_code!=0){
+            success=false;
+        }
+    }
 
     va_end(args);
 
-    return true;
+    return success;
 }
 
 /**
