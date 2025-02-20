@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -64,19 +65,15 @@ bool do_exec(int count, ...)
  *   (first argument to execv), and use the remaining arguments
  *   as second argument to the execv() command. 
  * 
- * /// ah fuck, this was not a good instruction:: as second argument all arguments should be used for execv
+ *  HINT for the @authors:: this was not a good instruction:: as second argument all arguments should be used for execv, not the remaining ones.
  *
 */
-    bool success=true;
-    pid_t pid= fork ();
-
     printf("Exec called %s with %d args\n", command[0],count);
-    // for (int i = 1; command[i] != NULL; i++) {
-    //     printf("Arg[%d]: %s\n", i, command[i]);
-    // }
+    fflush(stdout); // @authors Now, that was a good hint in the exercise instructions. Why not as comment here?
+    bool success=true;
+    pid_t pid= fork ();    
 
     if(pid==0){
-        printf("child process...\n");
         // child process
         execv(command[0], &command[0]);
         // if it continues it was an error, otherwise the execv process takes over.
@@ -123,14 +120,49 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
 
 
 /*
- * TODO
+ * Done.
  *   Call execv, but first using https://stackoverflow.com/a/13784315/1446624 as a refernce,
  *   redirect standard out to a file specified by outputfile.
  *   The rest of the behaviour is same as do_exec()
  *
+ *  HINT for the @authors: without implementing this function yet, the first part of the test_exec_redirect_calls was already passing.
+ *  The reason being that the REDIRECT_FILE is also used in test_systemcalls and is never cleaned up!!
 */
+
+
+    int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+    if (fd < 0) { perror("open"); abort(); }
+    
+    // as in previous exec:
+    bool success=true;
+    pid_t pid= fork ();
+
+    if(pid==0){
+        // child process
+        if (dup2(fd, 1) < 0) { perror("dup2"); abort(); }
+        close(fd);
+
+        execv(command[0], &command[0]);
+        // if it continues it was an error, otherwise the execv process takes over.
+        perror("Error with execv");
+        exit(EXIT_FAILURE);
+    }
+    int status;
+        
+    waitpid(pid, &status, 0);
+    printf("status %d\n", status);
+
+    if (WIFEXITED(status)) {
+        int exit_code = WEXITSTATUS(status);
+        printf("Exit code: %d\n", exit_code);
+        if(exit_code!=0){
+            success=false;
+        }
+    }
+    close(fd);
+
 
     va_end(args);
 
-    return true;
+    return success;
 }
