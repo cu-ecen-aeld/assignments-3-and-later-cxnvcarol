@@ -104,6 +104,7 @@ make CROSS_COMPILE=$CROSS_COMPILE
 cp finder* ${OUTDIR}/rootfs/home/.
 cp writer ${OUTDIR}/rootfs/home/.
 cp -r ../conf ${OUTDIR}/rootfs/home/conf
+cp autorun-qemu.sh ${OUTDIR}/rootfs/home/.
 
 # TODO: Chown the root directory //@authors, I'm assuming chown it to the root user? (I wish you were'nt this vague.)
 cd ${OUTDIR}
