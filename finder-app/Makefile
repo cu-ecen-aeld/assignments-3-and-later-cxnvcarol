@@ -1,4 +1,5 @@
-default: writer.c
-	$(CROSS_COMPILE)gcc -g writer.c -o writer
+CC ?= $(CROSS_COMPILE)gcc
+all: writer.c
+	$(CC) -g writer.c -o writer
 clean:
 	rm -f writer
