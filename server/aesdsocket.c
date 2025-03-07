@@ -21,11 +21,17 @@ char *buffer;
 int sockfd = -1;
 int file_fd = -1;
 int client_sockfd = -1;
+bool should_stop = false;
 
-void cleanup_and_exit(int signal)
+void handle_signals(int signal)
 {
     // Log the signal caught
     syslog(LOG_INFO, "Caught signal %d, exiting", signal);
+    should_stop = true;
+}
+
+void cleanup_and_exit()
+{
 
     // Close file descriptor if open
     if (file_fd != -1)
@@ -148,7 +154,13 @@ int main(int argc, char const *argv[])
     // Free the address info as it's no longer needed
     freeaddrinfo(res);
 
-    while (1)
+    buffer = calloc(BUFFER_SIZE, 1);
+    if (buffer == NULL)
+    {
+        perror("allocating initial memory");
+        exit(0);
+    }
+    while (!should_stop)
     {
         // Step 6: Accept client connection
         client_sockfd = accept(sockfd, (struct sockaddr *)&client_addr, &client_len);
@@ -172,19 +184,14 @@ int main(int argc, char const *argv[])
         syslog(LOG_DEBUG, "opened file ok");
 
         // Step 9: Receive data and process packets separated by newlines
-        buffer = malloc(BUFFER_SIZE);
-        if (buffer == NULL)
-        {
-            perror("allocating initial memory");
-            exit(0);
-        }
         ssize_t total_size = 0;
 
         while ((receivedsize = recv(client_sockfd, buffer, BUFFER_SIZE, 0)) > 0)
         {
-            char *pos_newline = strchr(buffer, '\n');
+            char *pos_newline = buffer[BUFFER_SIZE - 1] != '\0' ? NULL : strchr(buffer, '\n');
+            // char *pos_newline = strchr(buffer, '\n');
             ssize_t size_to_save = 0;
-            if (!pos_newline)
+            if (!pos_newline || pos_newline == NULL)
             {
                 // increase buffer size
                 size_to_save = BUFFER_SIZE;
@@ -204,7 +211,9 @@ int main(int argc, char const *argv[])
             }
             if (pos_newline)
             {
-                buffer = malloc(BUFFER_SIZE); // used now for reading.
+                // buffer = malloc(BUFFER_SIZE); // used now for reading.
+                free(buffer);
+                buffer = calloc(BUFFER_SIZE, 1);
 
                 // Send the entire file content back to the client
                 if (lseek(file_fd, 0, SEEK_SET) == -1) // Reset the file pointer to the beginning
@@ -218,7 +227,8 @@ int main(int argc, char const *argv[])
                 {
                     syslog(LOG_DEBUG, "sending back %ld chars'\n", read_size);
                     send(client_sockfd, buffer, read_size, 0);
-                    buffer = malloc(BUFFER_SIZE);
+                    free(buffer);
+                    buffer = calloc(BUFFER_SIZE, 1);
                 }
                 syslog(LOG_DEBUG, "Sent all back.");
                 close(client_sockfd);
@@ -227,7 +237,8 @@ int main(int argc, char const *argv[])
             }
             else
             {
-                buffer = malloc(BUFFER_SIZE);
+                free(buffer);
+                buffer = calloc(BUFFER_SIZE, 1);
                 if (buffer == NULL)
                 {
                     perror("While allocating extra memory");
@@ -246,6 +257,6 @@ int main(int argc, char const *argv[])
             syslog(LOG_DEBUG, "Last received is %ld", receivedsize);
         }
     }
-    cleanup_and_exit(0);
+    cleanup_and_exit();
     return 0;
 }
