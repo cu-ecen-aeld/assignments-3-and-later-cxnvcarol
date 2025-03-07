@@ -1,6 +1,7 @@
 CC :=$(if $(CROSS_COMPILE),$(CROSS_COMPILE)gcc,$(CC))
 CCFLAGS=-g -Wall -Werror
-all: aesdsocket.c
-	$(CC) $(CCFLAGS) aesdsocket.c -o aesdsocket
+TARGET ?=aesdsocket
+all: $(TARGET).c
+	$(CC) $(CCFLAGS) $(TARGET).c -o $(TARGET)
 clean:
-	rm -f aesdsocket
+	rm -f $(TARGET)
