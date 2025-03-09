@@ -51,13 +51,11 @@ void cleanup_and_exit()
         close(sockfd);
     }
 
-    // Delete file // TODO. Uncomment next comment.
+    // Delete file
     remove(FILE_PATH);
     free(buffer);
 
-    // Close syslog
     closelog();
-
     exit(0);
 }
 
@@ -76,8 +74,6 @@ int main(int argc, char const *argv[])
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
 
-    // char *packet;
-    // ssize_t packet_len = 0;
     ssize_t receivedsize;
 
     // Register signal handlers for graceful exit
@@ -160,6 +156,15 @@ int main(int argc, char const *argv[])
         perror("allocating initial memory");
         exit(0);
     }
+    // Step: Open file for appending data
+    file_fd = open(FILE_PATH, O_RDWR | O_CREAT | O_APPEND, 0666); // rw-rw-rw-
+    if (file_fd == -1)
+    {
+        perror("File open failed");
+        exit(0);
+    }
+    syslog(LOG_DEBUG, "opened file ok");
+
     while (!should_stop)
     {
         // Step 6: Accept client connection
@@ -169,19 +174,8 @@ int main(int argc, char const *argv[])
             syslog(LOG_ERR, "Accept failed: %s", strerror(errno));
             continue; // Continue to the next connection attempt
         }
-
         // Step 7: Log client IP address
         syslog(LOG_INFO, "Accepted connection from %s", inet_ntoa(client_addr.sin_addr));
-
-        // Step 8: Open file for appending data // TODO. move outside the loop?
-        file_fd = open(FILE_PATH, O_RDWR | O_CREAT | O_APPEND, 0666); // rw-rw-rw-
-        if (file_fd == -1)
-        {
-            syslog(LOG_ERR, "File open failed: %s", strerror(errno));
-            close(client_sockfd);
-            continue; // Continue to the next connection attempt
-        }
-        syslog(LOG_DEBUG, "opened file ok");
 
         // Step 9: Receive data and process packets separated by newlines
         ssize_t total_size = 0;
@@ -189,9 +183,8 @@ int main(int argc, char const *argv[])
         while ((receivedsize = recv(client_sockfd, buffer, BUFFER_SIZE, 0)) > 0)
         {
             char *pos_newline = buffer[BUFFER_SIZE - 1] != '\0' ? NULL : strchr(buffer, '\n');
-            // char *pos_newline = strchr(buffer, '\n');
             ssize_t size_to_save = 0;
-            if (!pos_newline || pos_newline == NULL)
+            if (!pos_newline)
             {
                 // increase buffer size
                 size_to_save = BUFFER_SIZE;
@@ -211,9 +204,7 @@ int main(int argc, char const *argv[])
             }
             if (pos_newline)
             {
-                // buffer = malloc(BUFFER_SIZE); // used now for reading.
-                free(buffer);
-                buffer = calloc(BUFFER_SIZE, 1);
+                memset(buffer, 0, BUFFER_SIZE); // used now for reading.
 
                 // Send the entire file content back to the client
                 if (lseek(file_fd, 0, SEEK_SET) == -1) // Reset the file pointer to the beginning
@@ -227,8 +218,7 @@ int main(int argc, char const *argv[])
                 {
                     syslog(LOG_DEBUG, "sending back %ld chars'\n", read_size);
                     send(client_sockfd, buffer, read_size, 0);
-                    free(buffer);
-                    buffer = calloc(BUFFER_SIZE, 1);
+                    memset(buffer, 0, BUFFER_SIZE);
                 }
                 syslog(LOG_DEBUG, "Sent all back.");
                 close(client_sockfd);
@@ -237,14 +227,8 @@ int main(int argc, char const *argv[])
             }
             else
             {
-                free(buffer);
-                buffer = calloc(BUFFER_SIZE, 1);
-                if (buffer == NULL)
-                {
-                    perror("While allocating extra memory");
-                    exit(0);
-                }
-                syslog(LOG_DEBUG, "allocated extra for packet");
+                memset(buffer, 0, BUFFER_SIZE);
+                syslog(LOG_DEBUG, "reset buffer for larger packet");
             }
         }
 
