@@ -161,9 +161,18 @@ void log_timestamp(int sig, siginfo_t *si, void *uc)
 
     pthread_mutex_lock(&data_mutex);
     syslog(LOG_DEBUG, "Timestamp: %s", buffer);
-    write(file_fd, "timestamp:", 10);
-    write(file_fd, buffer, sizeof(buffer));
-    write(file_fd, "\n", 1);
+    if (write(file_fd, "timestamp:", 10) == -1)
+    {
+        perror("Failed writing timestamp");
+    }
+    if (write(file_fd, buffer, sizeof(buffer)) == -1)
+    {
+        perror("Failed writing timestamp");
+    }
+    if (write(file_fd, "\n", 1) == -1)
+    {
+        perror("Failed writing timestamp");
+    }
     pthread_mutex_unlock(&data_mutex);
 }
 void setup_timer()
