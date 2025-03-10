@@ -24,6 +24,7 @@ slist_socket_t *datap;
 int sockfd = -1;
 int file_fd = -1;
 bool should_stop = false;
+bool timer_started = false;
 pthread_mutex_t data_mutex;
 
 void handle_signals(int signal)
@@ -153,23 +154,15 @@ void *client_thread_func(void *params)
 void log_timestamp(int sig, siginfo_t *si, void *uc)
 {
     time_t now;
-    char buffer[64] = {0};
+    char buffer[41] = {0};
 
     time(&now);
     struct tm *tm_info = localtime(&now);
-    strftime(buffer, sizeof(buffer), "%a, %d %b %Y %T %z", tm_info);
+    strftime(buffer, sizeof(buffer), "timestamp:%a, %d %b %Y %T %z\n", tm_info);
 
     pthread_mutex_lock(&data_mutex);
     syslog(LOG_DEBUG, "Timestamp: %s", buffer);
-    if (write(file_fd, "timestamp:", 10) == -1)
-    {
-        perror("Failed writing timestamp");
-    }
     if (write(file_fd, buffer, sizeof(buffer)) == -1)
-    {
-        perror("Failed writing timestamp");
-    }
-    if (write(file_fd, "\n", 1) == -1)
     {
         perror("Failed writing timestamp");
     }
@@ -215,6 +208,7 @@ void setup_timer()
         perror("timer_settime");
         exit(EXIT_FAILURE);
     }
+    timer_started = true;
 }
 int main(int argc, char const *argv[])
 {
@@ -323,12 +317,14 @@ int main(int argc, char const *argv[])
     }
     syslog(LOG_DEBUG, "opened file ok");
 
-    setup_timer();
-
     while (!should_stop)
     {
         // Step 6: Accept client connection
         int client_sockfd = accept(sockfd, (struct sockaddr *)&client_addr, &client_len);
+        if (!timer_started)
+        {
+            setup_timer();
+        }
         if (client_sockfd == -1)
         {
             syslog(LOG_DEBUG, "Accept client skipped: %s", strerror(errno));
